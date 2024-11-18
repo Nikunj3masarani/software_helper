@@ -2,7 +2,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv('.env'))
 from typing import Annotated
 from typing_extensions import TypedDict
-
+from langchain_core.messages.ai import AIMessage, ToolCall
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI
@@ -19,7 +19,7 @@ class State(TypedDict):
 
     messages: Annotated[list, add_messages]
 
-tool = TavilySearchResults(max_results=2, include_domains=get_include_domains())
+tool = TavilySearchResults(max_results=5, include_domains=get_include_domains())
 tools = [tool]
 llm = ChatOpenAI(model="gpt-4o")
 llm_with_tools = llm.bind_tools(tools)
@@ -51,11 +51,12 @@ if user_message:
     results = []
     for event in graph.stream({"messages": [("user", user_message)]}):
         for value in event.values():
-            results.append(value["messages"][-1].content)
+            message = value["messages"][-1]
+            if type(message)  == AIMessage:
+                results.append(message.content)
 
-    st.session_state.messages.append({"role": "assistant", "message": "Searching for software..."})
+    st.session_state.messages.append({"role": "assistant", "message": '\n'.join(results)})
 
-    st.write(results)
 
 # Display chat history
 for message in st.session_state.messages:
